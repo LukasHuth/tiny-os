@@ -20,3 +20,6 @@ It uses multiboot boot using something like grub.
 afterwards the switch to 64-bit mode happens.
 
 Help from [here](https://os.phil-opp.com/entering-longmode/)
+
+## Pages
+https://os.phil-opp.com/page-tables/

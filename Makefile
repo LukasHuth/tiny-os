@@ -10,7 +10,8 @@ asm_obj_files := $(patsubst src/arch/$(arch)/%.asm, \
 								 build/arch/$(arch)/%.o, $(asm_src_files))
 
 target ?= $(arch)-tiny_os
-rust_os := target/$(target)/debug/libtiny_os.a
+rust_build_mode := debug
+rust_os := target/$(target)/$(rust_build_mode)/libtiny_os.a
 
 .PHONY: all clean run iso kernel
 
@@ -20,7 +21,7 @@ clean:
 		@rm -r build
 
 run: $(iso)
-	@qemu-system-x86_64 -cdrom $(iso)
+	@qemu-system-x86_64 -cdrom $(iso) -m 1G
 
 iso: $(iso)
 
@@ -35,7 +36,7 @@ $(kernel): kernel $(rust_os) $(asm_obj_files) $(linker_script)
 	@ld -n --gc-sections -T $(linker_script) -o $(kernel) $(asm_obj_files) $(rust_os)
 
 kernel:
-	@RUST_TARGET_PATH=$(shell pwd) cargo build --target $(target)
+	@RUST_TARGET_PATH=$(shell pwd) cargo build --target $(target) $(if $(filter release,$(rust_build_mode)),--release)
 
 build/arch/$(arch)/%.o: src/arch/$(arch)/%.asm
 	@mkdir -p $(shell dirname $@)
