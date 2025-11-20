@@ -9,7 +9,10 @@ asm_src_files := $(wildcard src/arch/$(arch)/*.asm)
 asm_obj_files := $(patsubst src/arch/$(arch)/%.asm, \
 								 build/arch/$(arch)/%.o, $(asm_src_files))
 
-.PHONY: all clean run iso
+target ?= $(arch)-tiny_os
+rust_os := target/$(target)/debug/libtiny_os.a
+
+.PHONY: all clean run iso kernel
 
 all: $(kernel)
 
@@ -28,8 +31,11 @@ $(iso): $(kernel) $(grub_cfg)
 	@grub-mkrescue -o $(iso) build/isofiles -d /usr/lib/grub/$(grub_platform)
 	@rm -r build/isofiles
 
-$(kernel): $(asm_obj_files) $(linker_script)
-	@ld -n -T $(linker_script) -o $(kernel) $(asm_obj_files)
+$(kernel): kernel $(rust_os) $(asm_obj_files) $(linker_script)
+	@ld -n --gc-sections -T $(linker_script) -o $(kernel) $(asm_obj_files) $(rust_os)
+
+kernel:
+	@RUST_TARGET_PATH=$(shell pwd) cargo build --target $(target)
 
 build/arch/$(arch)/%.o: src/arch/$(arch)/%.asm
 	@mkdir -p $(shell dirname $@)
