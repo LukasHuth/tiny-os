@@ -23,3 +23,6 @@ Help from [here](https://os.phil-opp.com/entering-longmode/)
 
 ## Pages
 https://os.phil-opp.com/page-tables/
+
+## current progress
+https://os.phil-opp.com/remap-the-kernel/

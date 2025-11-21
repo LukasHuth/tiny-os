@@ -11,3 +11,4 @@ crate-type = ["staticlib"]
 linked_list_allocator = "0.10.5"
 multiboot2 = "0.24.0"
 spin = "0.10.0"
+x86_64 = "0.15.3"

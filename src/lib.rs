@@ -1,6 +1,8 @@
 #![no_std]
 #![no_main]
 #![feature(ptr_internals)]
+#![feature(const_trait_impl)]
+#![feature(const_ops)]
 use core::panic::PanicInfo;
 
 use multiboot2::{BootInformation, BootInformationHeader, MemoryAreaType};
@@ -103,15 +105,17 @@ pub extern "C" fn rust_main(multiboot_information_address: usize) -> ! {
         multiboot_end,
         memory_map_tag.memory_areas(),
     );
-    for i in 1.. {
-        let frame = frame_allocator.allocate_frame();
-        if let None = frame {
-            if DEBUG_PRINTS {
-                println!("allocated {} frames", i);
-            }
-            break;
-        }
-    }
+    // for i in 1.. {
+    //     let frame = frame_allocator.allocate_frame();
+    //     if let None = frame {
+    //         if DEBUG_PRINTS {
+    //             println!("allocated {} frames", i);
+    //         }
+    //         break;
+    //     }
+    // }
+
+    memory::test_paging(&mut frame_allocator);
 
     loop {}
 }
