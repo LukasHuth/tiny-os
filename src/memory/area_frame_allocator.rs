@@ -14,7 +14,7 @@ pub struct AreaFrameAllocator<'a> {
 impl<'a> FrameAllocator for AreaFrameAllocator<'a> {
     fn allocate_frame(&mut self) -> Option<Frame> {
         if let Some(area) = self.current_area {
-            let frame = self.next_free_frame;
+            let frame = self.next_free_frame.clone();
             let current_area_last_frame = {
                 let address = area.start_address() + area.size() - 1;
                 Frame::containing_address(address as usize)
@@ -39,7 +39,7 @@ impl<'a> FrameAllocator for AreaFrameAllocator<'a> {
         }
     }
 
-    fn deallocate_frame(&mut self, frame: Frame) {
+    fn deallocate_frame(&mut self, _frame: Frame) {
         unimplemented!()
     }
 }

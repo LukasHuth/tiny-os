@@ -38,6 +38,7 @@ pub enum Color {
     Yellow = 14,
     White = 15,
 }
+#[allow(dead_code)]
 #[derive(Debug, Clone, Copy)]
 struct ColorCode(u8);
 

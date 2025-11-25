@@ -1,5 +1,8 @@
 use core::ops::{BitOr, BitOrAssign};
 
+use multiboot2::{ElfSection, ElfSectionFlags};
+
+#[derive(Clone, Copy)]
 pub enum EntryFlags {
     Present,
     Writeable,
@@ -11,6 +14,30 @@ pub enum EntryFlags {
     HugePage,
     Global,
     NoExecute,
+}
+impl EntryFlags {
+    pub fn from_elf_section_flags(section: &ElfSection) -> u64 {
+        let mut flags = 0;
+
+        if section.flags().contains(ElfSectionFlags::ALLOCATED) {
+            flags |= EntryFlags::Present;
+        }
+        if section.flags().contains(ElfSectionFlags::WRITABLE) {
+            flags |= EntryFlags::Writeable;
+        }
+        if !section.flags().contains(ElfSectionFlags::EXECUTABLE) {
+            flags |= EntryFlags::NoExecute;
+        }
+        flags
+    }
+}
+pub trait EntryFlag: const Into<u64> {}
+impl EntryFlag for u64 {}
+impl EntryFlag for EntryFlags {}
+impl const Into<u64> for EntryFlags {
+    fn into(self) -> u64 {
+        self.value()
+    }
 }
 impl EntryFlags {
     pub const MASK: u64 = Self::Present
@@ -59,10 +86,10 @@ impl const BitOr<EntryFlags> for u64 {
         self | rhs.value()
     }
 }
-impl const BitOr for EntryFlags {
+impl<T> const BitOr<T> for EntryFlags where T: EntryFlag {
     type Output = u64;
 
-    fn bitor(self, rhs: EntryFlags) -> Self::Output {
-        self.value() | rhs.value()
+    fn bitor(self, rhs: T) -> Self::Output {
+        T::into(rhs) | self.value()
     }
 }
