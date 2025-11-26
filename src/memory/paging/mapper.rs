@@ -69,8 +69,7 @@ impl Mapper {
         let flags: u64 = flags.into();
         p1[page.p1_index()].set(frame, flags | EntryFlags::Present)
     }
-    #[allow(dead_code)]
-    pub fn map<A>(&mut self, page: Page, flags: u64, allocator: &mut A)
+    pub fn map<A>(&mut self, page: Page, flags: impl EntryFlag, allocator: &mut A)
     where
         A: FrameAllocator,
     {

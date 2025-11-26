@@ -21,9 +21,7 @@ impl Frame {
     }
 
     fn range_inclusive(start: Frame, end: Frame) -> FrameIter {
-        FrameIter {
-            start, end
-        }
+        FrameIter { start, end }
     }
 }
 struct FrameIter {
@@ -50,5 +48,73 @@ pub trait FrameAllocator {
 mod area_frame_allocator;
 pub use area_frame_allocator::*;
 mod paging;
+use multiboot2::{BootInformation, ElfSection};
+use once::assert_has_not_been_called;
 pub use paging::remap_the_kernel;
+
+use crate::memory::paging::entry_flags::EntryFlags;
 // pub use paging::test_paging;
+mod heap_allocator;
+pub fn init(boot_info: &BootInformation) {
+    assert_has_not_been_called!("memory::init must only be called once");
+    let memory_map_tag = boot_info.memory_map_tag().expect("Memory map tag required");
+    let elf_sections_tag = boot_info
+        .elf_sections_tag()
+        .expect("Elf-sections tag required");
+
+    let kernel_start = elf_sections_tag
+        .sections()
+        .filter(ElfSection::is_allocated)
+        .map(|s| s.start_address())
+        .min()
+        .unwrap();
+    let kernel_end = elf_sections_tag
+        .sections()
+        .filter(ElfSection::is_allocated)
+        .map(|s| s.start_address() + s.size())
+        .max()
+        .unwrap();
+
+    if crate::DEBUG_PRINTS {
+        println!(
+            "kernel_start: {:#x} kernel_end: {:#x}",
+            kernel_start, kernel_end
+        );
+        println!(
+            "multiboot_start: {:#x} multiboot_end: {:#x}",
+            boot_info.start_address(),
+            boot_info.end_address()
+        );
+        println!("memory_area count: {}", memory_map_tag.memory_areas().len());
+    }
+    let mut frame_allocator = AreaFrameAllocator::new(
+        kernel_start as usize,
+        kernel_end as usize,
+        boot_info.start_address(),
+        boot_info.end_address(),
+        memory_map_tag.memory_areas(),
+    );
+
+    let mut active_table = remap_the_kernel(&mut frame_allocator, &boot_info);
+
+    {
+        use self::paging::Page;
+        use heap_allocator::{HEAP_SMALL_SIZE, HEAP_SMALL_START};
+        let heap_start_page = Page::containing_address(HEAP_SMALL_START);
+        let heap_end_page = Page::containing_address(HEAP_SMALL_START + HEAP_SMALL_SIZE-1);
+
+        for page in Page::range_inclusive(heap_start_page, heap_end_page) {
+            active_table.map(page, EntryFlags::Writeable, &mut frame_allocator);
+        }
+    }
+    {
+        use self::paging::Page;
+        use heap_allocator::{HEAP2_SIZE, HEAP2_START};
+        let heap_start_page = Page::containing_address(HEAP2_START);
+        let heap_end_page = Page::containing_address(HEAP2_START + HEAP2_SIZE-1);
+
+        for page in Page::range_inclusive(heap_start_page, heap_end_page) {
+            active_table.map(page, EntryFlags::Writeable, &mut frame_allocator);
+        }
+    }
+}
