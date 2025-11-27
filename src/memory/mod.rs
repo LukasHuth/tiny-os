@@ -52,7 +52,7 @@ use multiboot2::{BootInformation, ElfSection};
 use once::assert_has_not_been_called;
 pub use paging::remap_the_kernel;
 
-use crate::memory::paging::entry_flags::EntryFlags;
+use crate::memory::{heap_allocator::{HEAP2_SIZE, HEAP2_START}, paging::entry_flags::EntryFlags};
 // pub use paging::test_paging;
 mod heap_allocator;
 pub fn init(boot_info: &BootInformation) {
@@ -117,4 +117,5 @@ pub fn init(boot_info: &BootInformation) {
             active_table.map(page, EntryFlags::Writeable, &mut frame_allocator);
         }
     }
+    heap_allocator::HEAP.init(HEAP2_START, HEAP2_SIZE);
 }
