@@ -52,7 +52,9 @@ pub extern "C" fn rust_main(multiboot_information_address: usize) -> ! {
 
     interrupts::init();
 
-    x86_64::instructions::interrupts::int3();
+    unsafe {
+        *(0xdeadbea0 as *mut u64) = 42;
+    };
 
     println!("It did not crash!");
 

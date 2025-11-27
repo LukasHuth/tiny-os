@@ -28,5 +28,4 @@ https://os.phil-opp.com/page-tables/
 https://os.phil-opp.com/remap-the-kernel/
 
 ## next
-https://os.phil-opp.com/kernel-heap/#implementation
-But implement own heap
+https://os.phil-opp.com/double-faults/

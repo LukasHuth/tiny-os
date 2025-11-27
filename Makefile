@@ -21,7 +21,7 @@ clean:
 		@rm -r build
 
 run: $(iso)
-	@qemu-system-x86_64 -d int -no-reboot -cdrom $(iso) -m 1G
+	@qemu-system-x86_64 -d int -cdrom $(iso) -m 1G
 
 iso: $(iso)
 
