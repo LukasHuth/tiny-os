@@ -7,13 +7,18 @@
 #![feature(const_ops)]
 #![feature(allocator_api)]
 #![feature(slice_ptr_get)]
+#![feature(btreemap_alloc)]
+#![feature(abi_x86_interrupt)]
 use core::panic::PanicInfo;
 
-use alloc::boxed::Box;
+use alloc::{boxed::Box, string::String};
 use multiboot2::{BootInformation, BootInformationHeader};
 
-extern crate multiboot2;
 extern crate alloc;
+extern crate multiboot2;
+
+#[macro_use]
+extern crate lazy_static;
 
 use crate::memory::FrameAllocator as _;
 
@@ -21,8 +26,12 @@ const DEBUG_PRINTS: bool = true;
 
 use linked_list_allocator::LockedHeap;
 
+#[global_allocator]
+static ALLOCATOR: LockedHeap = LockedHeap::empty();
+
 #[macro_use]
 mod vga_buffer;
+mod interrupts;
 mod memory;
 
 #[no_mangle]
@@ -41,8 +50,9 @@ pub extern "C" fn rust_main(multiboot_information_address: usize) -> ! {
 
     memory::init(&boot_info);
 
+    interrupts::init();
 
-    let _box = Box::new(42);
+    x86_64::instructions::interrupts::int3();
 
     println!("It did not crash!");
 

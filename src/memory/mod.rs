@@ -117,5 +117,8 @@ pub fn init(boot_info: &BootInformation) {
             active_table.map(page, EntryFlags::Writeable, &mut frame_allocator);
         }
     }
-    heap_allocator::HEAP.init(HEAP2_START, HEAP2_SIZE);
+    unsafe {
+        crate::ALLOCATOR.lock().init(HEAP2_START as *mut u8, HEAP2_SIZE);
+    }
+    // heap_allocator::HEAP.init(HEAP2_START, HEAP2_SIZE);
 }

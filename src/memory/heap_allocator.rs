@@ -4,7 +4,7 @@ use core::{
     sync::atomic::AtomicUsize,
 };
 
-use alloc::vec::Vec;
+use alloc::{collections::btree_set::BTreeSet, vec::Vec};
 use spin::Mutex;
 
 #[derive(Debug)]
@@ -93,7 +93,7 @@ pub const HEAP2_SIZE: usize = 1024 * 1024; // 1 MiB
 
 // #[global_allocator]
 // static HEAP_ALLOCATOR: BumpAllocator = BumpAllocator::new(HEAP_START, HEAP_START + HEAP_SIZE);
-#[global_allocator]
+// #[global_allocator]
 pub static HEAP: LockedHeap = LockedHeap::new();
 pub struct LockedHeap(Mutex<Heap>);
 impl LockedHeap {
@@ -110,7 +110,7 @@ enum Heap {
         available: Vec<HeapEntry, BumpAllocator>,
     },
 }
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct HeapEntry {
     start: usize,
     size: usize,
@@ -118,6 +118,20 @@ pub struct HeapEntry {
 impl HeapEntry {
     pub const fn new(start: usize, size: usize) -> Self {
         Self { start, size }
+    }
+
+    fn end(&self) -> usize {
+        self.start + self.size
+    }
+}
+impl PartialOrd for HeapEntry {
+    fn partial_cmp(&self, other: &Self) -> Option<core::cmp::Ordering> {
+        Some(self.cmp(other))
+    }
+}
+impl Ord for HeapEntry {
+    fn cmp(&self, other: &Self) -> core::cmp::Ordering {
+        self.start.cmp(&other.start)
     }
 }
 impl Heap {
@@ -253,6 +267,36 @@ impl Heap {
         }
     }
     pub fn dealloc(&mut self, ptr: *mut u8, layout: core::alloc::Layout) {
-        todo!()
+        match self {
+            Self::Empty => panic!("Dealloc used before init"),
+            Self::Initialized { available } => {
+                let start = ptr as usize;
+                let size = layout.size();
+                let mut idx = available.iter().position(|e| e.start >= start).unwrap_or(available.len());
+                available.insert(idx, HeapEntry { start, size });
+
+                let idx_start = idx;
+                // Coalesce prev
+                while idx > 0 && available[idx].start == available[idx-1].end() {
+                    available[idx-1].size += available[idx].size;
+                    idx -= 1;
+                }
+                // cleanup
+                if idx < idx_start {
+                    available.drain(idx+1..=idx_start);
+                }
+                let idx_start = idx;
+                // Coalesce next
+                while idx < available.len()-1 && available[idx].end() == available[idx + 1].start {
+                    available[idx+1].start = available[idx].start;
+                    available[idx+1].size += available[idx].size;
+                    idx += 1;
+                }
+                // cleanup
+                if idx_start < idx {
+                    available.drain(idx_start..idx);
+                }
+            }
+        }
     }
 }
