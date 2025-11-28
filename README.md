@@ -21,11 +21,3 @@ afterwards the switch to 64-bit mode happens.
 
 Help from [here](https://os.phil-opp.com/entering-longmode/)
 
-## Pages
-https://os.phil-opp.com/page-tables/
-
-## current progress
-https://os.phil-opp.com/remap-the-kernel/
-
-## next
-https://os.phil-opp.com/double-faults/
