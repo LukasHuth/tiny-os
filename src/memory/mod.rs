@@ -52,10 +52,14 @@ use multiboot2::{BootInformation, ElfSection};
 use once::assert_has_not_been_called;
 pub use paging::remap_the_kernel;
 
-use crate::memory::{heap_allocator::{HEAP2_SIZE, HEAP2_START}, paging::entry_flags::EntryFlags};
+use crate::memory::{
+    heap_allocator::{HEAP2_SIZE, HEAP2_START},
+    paging::{entry_flags::EntryFlags, ActivePageTable},
+    stack_allocator::{Stack, StackAllocator},
+};
 // pub use paging::test_paging;
 mod heap_allocator;
-pub fn init(boot_info: &BootInformation) {
+pub fn init<'a>(boot_info: &'a BootInformation) -> MemoryController<'a> {
     assert_has_not_been_called!("memory::init must only be called once");
     let memory_map_tag = boot_info.memory_map_tag().expect("Memory map tag required");
     let elf_sections_tag = boot_info
@@ -101,24 +105,52 @@ pub fn init(boot_info: &BootInformation) {
         use self::paging::Page;
         use heap_allocator::{HEAP_SMALL_SIZE, HEAP_SMALL_START};
         let heap_start_page = Page::containing_address(HEAP_SMALL_START);
-        let heap_end_page = Page::containing_address(HEAP_SMALL_START + HEAP_SMALL_SIZE-1);
+        let heap_end_page = Page::containing_address(HEAP_SMALL_START + HEAP_SMALL_SIZE - 1);
 
         for page in Page::range_inclusive(heap_start_page, heap_end_page) {
             active_table.map(page, EntryFlags::Writeable, &mut frame_allocator);
         }
     }
-    {
-        use self::paging::Page;
-        use heap_allocator::{HEAP2_SIZE, HEAP2_START};
-        let heap_start_page = Page::containing_address(HEAP2_START);
-        let heap_end_page = Page::containing_address(HEAP2_START + HEAP2_SIZE-1);
+    use self::paging::Page;
+    use heap_allocator::{HEAP2_SIZE, HEAP2_START};
+    let heap_start_page = Page::containing_address(HEAP2_START);
+    let heap_end_page = Page::containing_address(HEAP2_START + HEAP2_SIZE - 1);
 
-        for page in Page::range_inclusive(heap_start_page, heap_end_page) {
-            active_table.map(page, EntryFlags::Writeable, &mut frame_allocator);
-        }
+    for page in Page::range_inclusive(heap_start_page, heap_end_page) {
+        active_table.map(page, EntryFlags::Writeable, &mut frame_allocator);
     }
     unsafe {
-        crate::ALLOCATOR.lock().init(HEAP2_START as *mut u8, HEAP2_SIZE);
+        crate::ALLOCATOR
+            .lock()
+            .init(HEAP2_START as *mut u8, HEAP2_SIZE);
     }
+    let stack_allocator = {
+        let stack_alloc_start = heap_end_page + 1;
+        let stack_alloc_end = stack_alloc_start + 100;
+        let stack_alloc_range = Page::range_inclusive(stack_alloc_start, stack_alloc_end);
+        stack_allocator::StackAllocator::new(stack_alloc_range)
+    };
+
     // heap_allocator::HEAP.init(HEAP2_START, HEAP2_SIZE);
+    MemoryController {
+        active_table,
+        frame_allocator,
+        stack_allocator,
+    }
+}
+mod stack_allocator;
+pub struct MemoryController<'a> {
+    active_table: ActivePageTable,
+    frame_allocator: AreaFrameAllocator<'a>,
+    stack_allocator: StackAllocator,
+}
+impl<'a> MemoryController<'a> {
+    pub fn alloc_stack(&mut self, size_in_pages: usize) -> Option<Stack> {
+        let &mut MemoryController {
+            ref mut active_table,
+            ref mut frame_allocator,
+            ref mut stack_allocator,
+        } = self;
+        stack_allocator.alloc_stack(active_table, frame_allocator, size_in_pages)
+    }
 }

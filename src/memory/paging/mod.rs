@@ -1,4 +1,4 @@
-use core::ops::{Deref, DerefMut};
+use core::ops::{Add, Deref, DerefMut};
 
 use multiboot2::BootInformation;
 use x86_64::{structures::paging::PhysFrame, PhysAddr};
@@ -17,6 +17,24 @@ pub type VirtualAddress = usize;
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 pub struct Page {
     number: usize,
+}
+impl Add for Page {
+    type Output = Page;
+
+    fn add(self, rhs: Self) -> Self::Output {
+        Page {
+            number: self.number + rhs.number,
+        }
+    }
+}
+impl Add<usize> for Page {
+    type Output = Page;
+
+    fn add(self, rhs: usize) -> Self::Output {
+        Page {
+            number: self.number + rhs,
+        }
+    }
 }
 mod entry;
 pub mod entry_flags;
@@ -50,20 +68,21 @@ impl Page {
         PageIter { start, end }
     }
 }
+#[derive(Debug, Clone, Copy)]
 pub struct PageIter {
-        start: Page,
-        end: Page,
+    start: Page,
+    end: Page,
 }
 
 impl Iterator for PageIter {
-        type Item = Page;
+    type Item = Page;
 
-        fn next(&mut self) -> Option<Page> {
+    fn next(&mut self) -> Option<Page> {
         if self.start <= self.end {
             let page = self.start;
             self.start.number += 1;
             Some(page)
-            } else {
+        } else {
             None
         }
     }

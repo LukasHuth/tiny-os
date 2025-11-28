@@ -48,13 +48,16 @@ pub extern "C" fn rust_main(multiboot_information_address: usize) -> ! {
     enable_nxe_bit();
     enable_write_protection_bit();
 
-    memory::init(&boot_info);
+    let mut memory_controller = memory::init(&boot_info);
 
-    interrupts::init();
+    interrupts::init(&mut memory_controller);
 
-    unsafe {
-        *(0xdeadbea0 as *mut u64) = 42;
-    };
+    fn stack_overflow() {
+        stack_overflow(); // for each recursion, the return address is pushed
+    }
+
+    // trigger a stack overflow
+    stack_overflow();
 
     println!("It did not crash!");
 
