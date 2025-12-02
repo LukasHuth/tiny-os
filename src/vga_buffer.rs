@@ -1,5 +1,5 @@
-use core::ptr::Unique;
 use core::fmt;
+use core::ptr::Unique;
 
 use spin::Mutex;
 
@@ -39,11 +39,11 @@ pub enum Color {
     White = 15,
 }
 #[allow(dead_code)]
-#[derive(Debug, Clone, Copy)]
-struct ColorCode(u8);
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct ColorCode(u8);
 
 impl ColorCode {
-    const fn new(foreground: Color, background: Color) -> ColorCode {
+    pub const fn new(foreground: Color, background: Color) -> ColorCode {
         ColorCode((background as u8) << 4 | (foreground as u8))
     }
 }
@@ -54,8 +54,8 @@ struct ScreenChar {
     color_code: ColorCode,
 }
 
-const BUFFER_HEIGHT: usize = 25;
-const BUFFER_WIDTH: usize = 80;
+pub const BUFFER_HEIGHT: usize = 25;
+pub const BUFFER_WIDTH: usize = 80;
 
 struct Buffer {
     chars: [[ScreenChar; BUFFER_WIDTH]; BUFFER_HEIGHT],
@@ -67,12 +67,49 @@ pub static WRITER: Mutex<Writer> = Mutex::new(Writer {
     buffer: unsafe { Unique::new_unchecked(0xb8000 as *mut _) },
 });
 
+pub unsafe fn outb(port: u16, val: u8) {
+    core::arch::asm!(
+        "out dx, al",
+            in("dx") port,
+            in("al") val,
+    );
+}
+
+pub unsafe fn inb(port: u16) -> u8 {
+    let mut value: u8;
+    core::arch::asm!(
+        "in al, dx",
+            in("dx") port,
+            out("al") value,
+    );
+    value
+}
+
+pub fn disable_cursor() {
+    unsafe { outb(0x3D4, 0x0A) };
+    let value = unsafe { inb(0x3D5) };
+    unsafe { outb(0x3D4, 0x0A) };
+    unsafe { outb(0x3D5, value | 0x20) };
+}
+
 pub struct Writer {
     column_position: usize,
     color_code: ColorCode,
     buffer: Unique<Buffer>,
 }
 impl Writer {
+    pub fn write_pixels(&mut self, x: u8, y: u8, color_code: ColorCode) {
+        const FILL_FULL_BELOW: u8 = ('z' as u8) + 98;
+        unsafe {
+            core::ptr::write_volatile(
+                &mut self.buffer().chars[y as usize][x as usize],
+                ScreenChar {
+                    ascii_character: FILL_FULL_BELOW,
+                    color_code,
+                },
+            );
+        }
+    }
     pub fn write_byte(&mut self, byte: u8) {
         match byte {
             b'\n' => self.new_line(),

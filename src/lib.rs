@@ -20,7 +20,12 @@ extern crate multiboot2;
 #[macro_use]
 extern crate lazy_static;
 
-use crate::memory::FrameAllocator as _;
+extern crate pic8259;
+
+use crate::{
+    memory::FrameAllocator as _,
+    vga_buffer::{Color, ColorCode},
+};
 
 const DEBUG_PRINTS: bool = true;
 
@@ -37,6 +42,7 @@ mod memory;
 #[no_mangle]
 pub extern "C" fn rust_main(multiboot_information_address: usize) -> ! {
     vga_buffer::clear_screen();
+    vga_buffer::disable_cursor();
     if DEBUG_PRINTS {
         println!("Hello World{}", "!");
     }
@@ -52,17 +58,19 @@ pub extern "C" fn rust_main(multiboot_information_address: usize) -> ! {
 
     interrupts::init(&mut memory_controller);
 
-    fn stack_overflow() {
-        stack_overflow(); // for each recursion, the return address is pushed
-    }
-
-    // trigger a stack overflow
-    stack_overflow();
+    x86_64::instructions::interrupts::enable();
 
     println!("It did not crash!");
 
-    loop {}
+    let tetris = tetris::Tetris::new();
+    tetris.run();
+
+    loop {
+        x86_64::instructions::hlt();
+    }
 }
+
+mod tetris;
 
 fn enable_nxe_bit() {
     use x86_64::registers::control::{Efer, EferFlags};
@@ -84,3 +92,5 @@ fn panic(info: &PanicInfo) -> ! {
     println!("    {}", info.message());
     loop {}
 }
+
+mod utility;
