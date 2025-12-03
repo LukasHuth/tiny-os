@@ -60,6 +60,14 @@ impl Screen {
         }
         self.printed_pixels = pixel_map;
     }
+
+    pub(crate) fn width(&self) -> usize {
+        self.pixels.len()
+    }
+
+    pub(crate) fn height(&self) -> usize {
+        self.pixels[0].len()
+    }
 }
 use vga_buffer::{BUFFER_HEIGHT, BUFFER_WIDTH};
 const fn make_row(y: usize) -> [(usize, usize); BUFFER_WIDTH] {

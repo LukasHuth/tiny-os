@@ -9,6 +9,7 @@
 #![feature(slice_ptr_get)]
 #![feature(btreemap_alloc)]
 #![feature(abi_x86_interrupt)]
+#![feature(impl_trait_in_assoc_type)]
 use core::panic::PanicInfo;
 
 use alloc::{boxed::Box, string::String};

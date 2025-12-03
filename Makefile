@@ -22,7 +22,8 @@ clean:
 
 run: $(iso)
 	# @qemu-system-x86_64 -device isa-fdc -d int -cdrom $(iso) -m 1G
-	@qemu-system-x86_64 -device isa-fdc -cdrom $(iso) -m 1G
+	# @qemu-system-x86_64 -device isa-fdc -cdrom $(iso) -m 1G
+	@qemu-system-x86_64 -accel kvm -cpu host -device isa-fdc -cdrom $(iso) -m 1G
 
 iso: $(iso)
 
