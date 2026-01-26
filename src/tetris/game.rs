@@ -12,6 +12,7 @@ pub struct GameState {
     current_tetramino: Tetramino,
     subticks_since_last_drop: u64,
     next_tetramino: Tetramino,
+    holding: Option<Tetramino>,
 }
 #[derive(Debug, Clone, Copy)]
 struct Tetramino {
@@ -246,6 +247,7 @@ impl GameState {
             current_tetramino: Tetramino::random(),
             next_tetramino: Tetramino::random(),
             subticks_since_last_drop: 0,
+            holding: None,
         }
     }
 }
@@ -272,9 +274,10 @@ impl StateBehaviour for GameState {
     }
 
     fn draw(&self, screen: &mut Screen) {
-        self.clear_window(screen);
+        self.draw_gui(screen);
         self.draw_grid(screen);
         self.draw_current_tetramino(screen);
+        self.draw_upcomming_tetraminos(screen);
         screen.draw();
     }
 
@@ -293,12 +296,20 @@ impl GameState {
     fn draw_gui(&self, screen: &mut Screen) {
         screen.clear(Color::LightGray);
         self.clear_window(screen);
+        self.clear_preview(screen);
+    }
+    fn clear_preview(&self, screen: &mut Screen) {
+        let (game_window_start_width, game_window_start_height) = Self::game_window_start(screen);
+        let upcomming_window_start_width = game_window_start_width + (self.grid[0].len() + 2) * 2;
+        let upcomming_window_start_height = game_window_start_height;
+        let upcomming_window_end_width = upcomming_window_start_width + 9;
+        let upcomming_window_end_height = upcomming_window_start_height + 11;
+        screen.fill(upcomming_window_start_width, upcomming_window_start_height, upcomming_window_end_width, upcomming_window_end_height, Color::Black);
     }
     fn clear_window(&self, screen: &mut Screen) {
-        let game_window_start_width = (screen.width() / 2) - (GAME_WINDOW_WIDTH / 2);
-        let game_window_start_height = screen.height() - GAME_WINDOW_HEIGHT - 1;
-        let game_window_end_width = game_window_start_width + GAME_WINDOW_WIDTH;
-        let game_window_end_height = game_window_start_height + GAME_WINDOW_HEIGHT;
+        let (game_window_start_width, game_window_start_height) = Self::game_window_start(screen);
+        let game_window_end_width = game_window_start_width + GAME_WINDOW_WIDTH + 1;
+        let game_window_end_height = game_window_start_height + GAME_WINDOW_HEIGHT - 1;
         screen.fill(
             game_window_start_width,
             game_window_start_height,
@@ -308,8 +319,7 @@ impl GameState {
         );
     }
     fn draw_grid(&self, screen: &mut Screen) {
-        let game_window_start_width = (screen.width() / 2) - (GAME_WINDOW_WIDTH / 2);
-        let game_window_start_height = screen.height() - GAME_WINDOW_HEIGHT - 1;
+        let (game_window_start_width, game_window_start_height) = Self::game_window_start(screen);
         for (y, pieces) in self.grid.iter().enumerate() {
             for (x, piece) in pieces.iter().enumerate() {
                 if let Some(piece) = piece {
@@ -328,9 +338,13 @@ impl GameState {
             }
         }
     }
-    fn draw_current_tetramino(&self, screen: &mut Screen) {
+    fn game_window_start(screen: &Screen) -> (usize, usize) {
         let game_window_start_width = (screen.width() / 2) - (GAME_WINDOW_WIDTH / 2);
-        let game_window_start_height = screen.height() - GAME_WINDOW_HEIGHT - 1;
+        let game_window_start_height = screen.height() - GAME_WINDOW_HEIGHT;
+        (game_window_start_width, game_window_start_height)
+    }
+    fn draw_current_tetramino(&self, screen: &mut Screen) {
+        let (game_window_start_width, game_window_start_height) = Self::game_window_start(screen);
         let current_tetramino_color = self
             .current_color_scheme
             .get_color(&self.current_tetramino.block_type);
@@ -340,6 +354,26 @@ impl GameState {
             let x_end = x_start + 1;
             let y_end = y_start + 1;
             screen.fill(x_start, y_start, x_end, y_end, current_tetramino_color);
+        }
+    }
+
+    fn draw_upcomming_tetraminos(&self, screen: &mut Screen) {
+        let (game_window_start_width, game_window_start_height) = Self::game_window_start(screen);
+        let upcomming_window_start_width = game_window_start_width + (self.grid[0].len() + 3) * 2;
+        let upcomming_window_start_height = game_window_start_height + 2;
+        let current_tetramino_color = self
+            .current_color_scheme
+            .get_color(&self.next_tetramino.block_type);
+        Self::draw_static_tetramino((upcomming_window_start_width,upcomming_window_start_height), &self.next_tetramino, current_tetramino_color, screen);
+    }
+
+    fn draw_static_tetramino(start: (usize, usize), tetramino: &Tetramino, color: Color, screen: &mut Screen) {
+        for piece in tetramino.get_used_blocks() {
+            let x_start = start.0 + (piece.x * 2) - tetramino.position.x * 2;
+            let y_start = start.1 + (piece.y * 2) - tetramino.position.y * 2;
+            let x_end = x_start + 1;
+            let y_end = y_start + 1;
+            screen.fill(x_start, y_start, x_end, y_end, color);
         }
     }
 }
