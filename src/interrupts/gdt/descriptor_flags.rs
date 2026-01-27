@@ -6,6 +6,7 @@ pub enum DescriptorFlags {
     Conforming = 1 << 42,
     Executable = 1 << 43,
     UserSegment = 1 << 44,
+    Ring3 = 0b11 << 45,
     Present = 1 << 47,
     LongMode = 1 << 53,
 }

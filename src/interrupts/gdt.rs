@@ -20,16 +20,16 @@ impl Gdt {
             next_free: 1,
         }
     }
-    pub fn add_entry(&mut self, entry: Descriptor) -> SegmentSelector {
+    pub fn add_entry(&mut self, entry: Descriptor, ring: x86_64::PrivilegeLevel) -> SegmentSelector {
         let index = match entry {
-            Descriptor::UserSegment(value) => self.push(value),
+            Descriptor::CodeDataSegment(value) => self.push(value),
             Descriptor::SystemSegment(value_low, value_high) => {
                 let index = self.push(value_low);
                 self.push(value_high);
                 index
             }
         };
-        SegmentSelector::new(index as u16, x86_64::PrivilegeLevel::Ring0)
+        SegmentSelector::new(index as u16, ring)
     }
     fn push(&mut self, value: u64) -> usize {
         if self.next_free < self.table.len() {
@@ -51,7 +51,7 @@ impl Gdt {
     }
 }
 pub enum Descriptor {
-    UserSegment(u64),
+    CodeDataSegment(u64),
     SystemSegment(u64, u64),
 }
 mod descriptor_flags;
@@ -59,7 +59,12 @@ impl Descriptor {
     pub fn kernel_code_segment() -> Descriptor {
         use descriptor_flags::DescriptorFlags::*;
         let flags = UserSegment | Present | Executable | LongMode;
-        Descriptor::UserSegment(flags)
+        Descriptor::CodeDataSegment(flags)
+    }
+    pub(crate) fn kernel_data_segment() -> Descriptor {
+        use descriptor_flags::DescriptorFlags::*;
+        let flags = UserSegment | Present;
+        Descriptor::CodeDataSegment(flags)
     }
     pub fn tss_segment(tss: &'static TaskStateSegment) -> Descriptor {
         use core::mem::size_of;
@@ -76,6 +81,18 @@ impl Descriptor {
         high.set_bits(0..32, ptr.get_bits(32..64));
 
         Descriptor::SystemSegment(low, high)
+    }
+
+    pub(crate) fn user_code_segment() -> Descriptor {
+        use descriptor_flags::DescriptorFlags::*;
+        let flags = UserSegment | Present | Executable | LongMode | Ring3;
+        Descriptor::CodeDataSegment(flags)
+    }
+
+    pub(crate) fn user_data_segment() -> Descriptor {
+        use descriptor_flags::DescriptorFlags::*;
+        let flags = UserSegment | Present | Ring3;
+        Descriptor::CodeDataSegment(flags)
     }
 }
 trait BitOps {

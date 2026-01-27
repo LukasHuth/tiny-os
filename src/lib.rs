@@ -14,6 +14,7 @@ use core::panic::PanicInfo;
 
 use alloc::{boxed::Box, string::String};
 use multiboot2::{BootInformation, BootInformationHeader};
+use x86_64::structures::gdt::SegmentSelector;
 
 extern crate alloc;
 extern crate multiboot2;
@@ -24,8 +25,7 @@ extern crate lazy_static;
 extern crate pic8259;
 
 use crate::{
-    memory::FrameAllocator as _,
-    vga_buffer::{Color, ColorCode},
+    interrupts::switch_to_user, memory::FrameAllocator as _, vga_buffer::{Color, ColorCode}
 };
 
 const DEBUG_PRINTS: bool = true;
@@ -63,11 +63,24 @@ pub extern "C" fn rust_main(multiboot_information_address: usize) -> ! {
 
     println!("It did not crash!");
 
-    let tetris = tetris::Tetris::new();
-    tetris.run();
+    let user_stack_top = memory_controller.alloc_stack(5).unwrap();
+    load_user_program();
+    
+    unsafe { switch_to_user(memory::USERMODE_CODE_START as u64, user_stack_top.top() as u64) };
+
+    // let tetris = tetris::Tetris::new();
+    // tetris.run();
 
     loop {
         x86_64::instructions::hlt();
+    }
+}
+
+// TODO: real bin
+const TETRIS_BIN: &[u8] = include_bytes!("../tetris_user.bin");
+fn load_user_program() {
+    unsafe {
+        core::ptr::copy_nonoverlapping(TETRIS_BIN.as_ptr(), memory::USERMODE_CODE_START as *mut u8, TETRIS_BIN.len());
     }
 }
 

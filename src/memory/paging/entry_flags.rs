@@ -17,11 +17,8 @@ pub enum EntryFlags {
 }
 impl EntryFlags {
     pub fn from_elf_section_flags(section: &ElfSection) -> u64 {
-        let mut flags = 0;
+        let mut flags = 0 | EntryFlags::Present;
 
-        if section.flags().contains(ElfSectionFlags::ALLOCATED) {
-            flags |= EntryFlags::Present;
-        }
         if section.flags().contains(ElfSectionFlags::WRITABLE) {
             flags |= EntryFlags::Writeable;
         }

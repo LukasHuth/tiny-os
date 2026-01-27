@@ -1,3 +1,4 @@
+use core::arch::asm;
 use core::sync::atomic::AtomicU64;
 use core::sync::atomic::Ordering;
 
@@ -5,6 +6,9 @@ use pic8259::ChainedPics;
 use spin::Mutex;
 use spin::Once;
 use x86_64::registers::segmentation::Segment;
+use x86_64::registers::segmentation::DS;
+use x86_64::registers::segmentation::ES;
+use x86_64::registers::segmentation::SS;
 use x86_64::structures::gdt::SegmentSelector;
 use x86_64::structures::idt::InterruptDescriptorTable;
 use x86_64::structures::idt::InterruptStackFrame;
@@ -49,23 +53,64 @@ pub fn init(memory_controller: &mut MemoryController) {
         tss
     });
 
-    let mut code_selector = SegmentSelector(0);
+    let mut kernel_code_selector = SegmentSelector(0);
+    let mut user_code_selector = SegmentSelector(0);
+    let mut user_data_selector = SegmentSelector(0);
     let mut tss_selector = SegmentSelector(0);
     let gdt = GDT.call_once(|| {
         let mut gdt = gdt::Gdt::new();
-        code_selector = gdt.add_entry(gdt::Descriptor::kernel_code_segment());
-        tss_selector = gdt.add_entry(gdt::Descriptor::tss_segment(&tss));
+        kernel_code_selector = gdt.add_entry(
+            gdt::Descriptor::kernel_code_segment(),
+            x86_64::PrivilegeLevel::Ring0,
+        );
+        user_code_selector = gdt.add_entry(
+            gdt::Descriptor::user_code_segment(),
+            x86_64::PrivilegeLevel::Ring3,
+        );
+        user_data_selector = gdt.add_entry(
+            gdt::Descriptor::user_data_segment(),
+            x86_64::PrivilegeLevel::Ring3,
+        );
+        tss_selector = gdt.add_entry(
+            gdt::Descriptor::tss_segment(&tss),
+            x86_64::PrivilegeLevel::Ring0,
+        );
         gdt
     });
     gdt.load();
 
     unsafe {
-        x86_64::instructions::segmentation::CS::set_reg(code_selector);
+        x86_64::instructions::segmentation::CS::set_reg(kernel_code_selector);
         x86_64::instructions::tables::load_tss(tss_selector);
     }
 
     IDT.load();
 }
+pub unsafe fn switch_to_user(rip: u64, rsp: u64) {
+    let user_data_sel = SegmentSelector::new(2, x86_64::PrivilegeLevel::Ring3);
+    let user_code_sel = SegmentSelector::new(2, x86_64::PrivilegeLevel::Ring3);
+
+    asm!(
+        "cli",
+        "mov ds, {0:x}",
+        "mov es, {0:x}",
+        "mov fs, {0:x}",
+        "mov gs, {0:x}",
+        "mov ss, {0:x}",
+        "push {0:x}",
+        "push {1}",
+        "pushfq",
+        "push {2:x}",
+        "push {3}",
+        "iretq",
+        in(reg) user_data_sel.0,
+        in(reg) rsp,
+        in(reg) user_code_sel.0,
+        in(reg) rip,
+        options(noreturn)
+    );
+}
+
 fn start_timer() {
     const PIT_FREQ: u32 = 1193182; // PIT input clock frequency
     const HZ: u32 = 1_000;

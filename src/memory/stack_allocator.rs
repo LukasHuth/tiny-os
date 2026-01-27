@@ -51,7 +51,4 @@ impl Stack {
     pub fn top(&self) -> usize {
         self.top
     }
-    pub fn bottom(&self) -> usize {
-        self.bottom
-    }
 }

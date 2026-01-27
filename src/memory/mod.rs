@@ -57,6 +57,10 @@ use crate::memory::{
     paging::{entry_flags::EntryFlags, ActivePageTable},
     stack_allocator::{Stack, StackAllocator},
 };
+pub const USERMODE_CODE_START: usize = 0x8_00_00_00;
+pub const USERMODE_CODE_SIZE: usize = 0x1_00_00_00;
+pub const USERMODE_DATA_START: usize = 0x9_00_00_00;
+pub const USERMODE_DATA_SIZE: usize = 0x1_00_00_00;
 // pub use paging::test_paging;
 mod heap_allocator;
 pub fn init<'a>(boot_info: &'a BootInformation) -> MemoryController<'a> {
@@ -112,6 +116,16 @@ pub fn init<'a>(boot_info: &'a BootInformation) -> MemoryController<'a> {
         }
     }
     use self::paging::Page;
+    let usermode_code_start = Page::containing_address(USERMODE_CODE_START);
+    let usermode_code_end = Page::containing_address(USERMODE_CODE_START + USERMODE_CODE_SIZE - 1);
+    for page in Page::range_inclusive(usermode_code_start, usermode_code_end) {
+        active_table.map(page, EntryFlags::Present | EntryFlags::UserAccessible, &mut frame_allocator);
+    }
+    let usermode_data_start = Page::containing_address(USERMODE_DATA_START);
+    let usermode_data_end = Page::containing_address(USERMODE_DATA_START + USERMODE_DATA_SIZE - 1);
+    for page in Page::range_inclusive(usermode_data_start, usermode_data_end) {
+        active_table.map(page, EntryFlags::Present | EntryFlags::Writeable | EntryFlags::NoExecute | EntryFlags::UserAccessible, &mut frame_allocator);
+    }
     use heap_allocator::{HEAP2_SIZE, HEAP2_START};
     let heap_start_page = Page::containing_address(HEAP2_START);
     let heap_end_page = Page::containing_address(HEAP2_START + HEAP2_SIZE - 1);
