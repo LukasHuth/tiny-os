@@ -63,13 +63,13 @@ pub extern "C" fn rust_main(multiboot_information_address: usize) -> ! {
 
     println!("It did not crash!");
 
-    let user_stack_top = memory_controller.alloc_stack(5).unwrap();
-    load_user_program();
-    
-    unsafe { switch_to_user(memory::USERMODE_CODE_START as u64, user_stack_top.top() as u64) };
+    // let user_stack_top = memory_controller.alloc_stack(5).unwrap();
+    // load_user_program();
+    // 
+    // unsafe { switch_to_user(memory::USERMODE_CODE_START as u64, user_stack_top.top() as u64) };
 
-    // let tetris = tetris::Tetris::new();
-    // tetris.run();
+    let tetris = tetris::Tetris::new();
+    tetris.run();
 
     loop {
         x86_64::instructions::hlt();
